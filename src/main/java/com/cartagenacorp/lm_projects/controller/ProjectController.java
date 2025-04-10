@@ -3,6 +3,7 @@ package com.cartagenacorp.lm_projects.controller;
 import com.cartagenacorp.lm_projects.dto.PageResponseDTO;
 import com.cartagenacorp.lm_projects.dto.ProjectDTO;
 import com.cartagenacorp.lm_projects.service.ProjectService;
+import com.cartagenacorp.lm_projects.util.RequiresPermission;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
@@ -19,10 +20,15 @@ import java.util.UUID;
 @RequestMapping("/api/projects")
 public class ProjectController {
 
+    private final ProjectService projectService;
+
     @Autowired
-    private ProjectService projectService;
+    public ProjectController(ProjectService projectService) {
+        this.projectService = projectService;
+    }
 
     @GetMapping
+    @RequiresPermission({"PROJECT_CRUD", "PROJECT_READ"})
     public ResponseEntity<PageResponseDTO<ProjectDTO>> getAllProjects(
             @RequestParam(required = false) String name,
             @RequestParam(required = false) String status,
@@ -35,6 +41,7 @@ public class ProjectController {
     }
 
     @GetMapping("/{id}")
+    @RequiresPermission({"PROJECT_CRUD", "PROJECT_READ"})
     public ResponseEntity<?> getProjectById(@PathVariable String id) {
         try {
             UUID uuid = UUID.fromString(id);
@@ -50,18 +57,10 @@ public class ProjectController {
     }
 
     @PostMapping
-    public ResponseEntity<?> createProject(
-            @RequestBody ProjectDTO projectDTO,
-            @RequestHeader("Authorization") String authHeader) {
-
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        }
-
-        String token = authHeader.substring(7);
-
+    @RequiresPermission({"PROJECT_CRUD"})
+    public ResponseEntity<?> createProject(@RequestBody ProjectDTO projectDTO) {
         try {
-            ProjectDTO createdProject = projectService.createProject(projectDTO, token);
+            ProjectDTO createdProject = projectService.createProject(projectDTO);
             return ResponseEntity.status(HttpStatus.CREATED).body(createdProject);
         } catch (ResponseStatusException ex) {
             return ResponseEntity.status(ex.getStatusCode()).body(ex.getReason());
@@ -71,21 +70,12 @@ public class ProjectController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<?> updateProject(
-            @PathVariable String id,
-            @RequestBody ProjectDTO projectDTO,
-            @RequestHeader("Authorization") String authHeader) {
+    @RequiresPermission({"PROJECT_CRUD"})
+    public ResponseEntity<?> updateProject(@PathVariable String id, @RequestBody ProjectDTO projectDTO) {
 
         try {
             UUID uuid = UUID.fromString(id);
-
-            if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-            }
-
-            String token = authHeader.substring(7);
-
-            ProjectDTO updatedProject = projectService.updateProject(projectDTO, uuid, token);
+            ProjectDTO updatedProject = projectService.updateProject(projectDTO, uuid);
             return ResponseEntity.ok(updatedProject);
         } catch (ResponseStatusException ex) {
             return ResponseEntity.status(ex.getStatusCode()).body(ex.getReason());
@@ -97,20 +87,11 @@ public class ProjectController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<?> deleteProject(
-            @PathVariable String id,
-            @RequestHeader("Authorization") String authHeader) {
-
+    @RequiresPermission({"PROJECT_CRUD"})
+    public ResponseEntity<?> deleteProject(@PathVariable String id) {
         try {
             UUID uuid = UUID.fromString(id);
-
-            if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-            }
-
-            String token = authHeader.substring(7);
-
-            projectService.deleteProject(uuid, token);
+            projectService.deleteProject(uuid);
             return ResponseEntity.noContent().build();
         } catch (ResponseStatusException ex) {
             return ResponseEntity.status(ex.getStatusCode()).body(ex.getReason());

@@ -5,6 +5,7 @@ import com.cartagenacorp.lm_projects.dto.ProjectDTO;
 import com.cartagenacorp.lm_projects.entity.Project;
 import com.cartagenacorp.lm_projects.mapper.ProjectMapper;
 import com.cartagenacorp.lm_projects.repository.ProjectRepository;
+import com.cartagenacorp.lm_projects.util.JwtContextHolder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -50,43 +51,27 @@ public class ProjectService {
     }
 
     @Transactional
-    public void deleteProject(UUID id, String token){
-        UUID userId = userValidationService.getUserIdFromToken(token);
-
-        if(userId == null){
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid token or user not found");
-        }
-
+    public void deleteProject(UUID id){
         Project project = projectRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Project not found"));
         projectRepository.delete(project);
     }
 
     @Transactional
-    public ProjectDTO createProject(ProjectDTO projectDTO, String token){
+    public ProjectDTO createProject(ProjectDTO projectDTO){
         if(projectDTO == null){ throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "The project cannot be null"); }
 
-        UUID userId = userValidationService.getUserIdFromToken(token);
-
-        if(userId == null){
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid token or user not found");
-        }
-
+        UUID userId = JwtContextHolder.getUserId();
         projectDTO.setCreatedBy(userId);
+
         Project project = projectMapper.projectDTOToProject(projectDTO);
         projectRepository.save(project);
         return projectMapper.projectToProjectDTO(project);
     }
 
     @Transactional
-    public ProjectDTO updateProject(ProjectDTO projectDTO, UUID id, String token){
+    public ProjectDTO updateProject(ProjectDTO projectDTO, UUID id){
         if(projectDTO == null){ throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "The project cannot be null"); }
-
-        UUID userId = userValidationService.getUserIdFromToken(token);
-
-        if(userId == null){
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid token or user not found");
-        }
 
         Project project = projectRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Project not found"));
