@@ -1,19 +1,15 @@
 package com.cartagenacorp.lm_projects.mapper;
 
-import com.cartagenacorp.lm_projects.dto.ProjectDTO;
 import com.cartagenacorp.lm_projects.entity.Project;
-import org.mapstruct.Mapper;
+import com.cartagenacorp.lm_projects.dto.ProjectDtoRequest;
+import com.cartagenacorp.lm_projects.dto.ProjectDtoResponse;
+import org.mapstruct.*;
 
-import java.util.List;
-
-@Mapper(componentModel = "spring")
+@Mapper(unmappedTargetPolicy = ReportingPolicy.IGNORE, componentModel = MappingConstants.ComponentModel.SPRING)
 public interface ProjectMapper {
-    Project projectDTOToProject(ProjectDTO projectDTO);
+    Project toEntity(ProjectDtoRequest projectDtoRequest);
+    ProjectDtoResponse toDto(Project project);
 
-    ProjectDTO projectToProjectDTO(Project project);
-
-    List<ProjectDTO> projectsToProjectsDTOs(List<Project> projects);
-
-    List<Project> projectsDTOsToProjects(List<ProjectDTO> projectDTOs);
-
+    @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
+    Project partialUpdate(ProjectDtoRequest projectDtoRequest, @MappingTarget Project project);
 }

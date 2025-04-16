@@ -1,7 +1,8 @@
 package com.cartagenacorp.lm_projects.service;
 
 import com.cartagenacorp.lm_projects.dto.PageResponseDTO;
-import com.cartagenacorp.lm_projects.dto.ProjectDTO;
+import com.cartagenacorp.lm_projects.dto.ProjectDtoRequest;
+import com.cartagenacorp.lm_projects.dto.ProjectDtoResponse;
 import com.cartagenacorp.lm_projects.entity.Project;
 import com.cartagenacorp.lm_projects.mapper.ProjectMapper;
 import com.cartagenacorp.lm_projects.repository.ProjectRepository;
@@ -20,17 +21,15 @@ import java.util.UUID;
 public class ProjectService {
     private final ProjectRepository projectRepository;
     private final ProjectMapper projectMapper;
-    private final UserValidationService userValidationService;
 
     @Autowired
-    public ProjectService(ProjectRepository projectRepository, ProjectMapper projectMapper, UserValidationService userValidationService) {
+    public ProjectService(ProjectRepository projectRepository, ProjectMapper projectMapper) {
         this.projectRepository = projectRepository;
         this.projectMapper = projectMapper;
-        this.userValidationService = userValidationService;
     }
 
     @Transactional(readOnly = true)
-    public PageResponseDTO<ProjectDTO> getAllProjects(String name, String status, Pageable pageable){
+    public PageResponseDTO<ProjectDtoResponse> getAllProjects(String name, String status, Pageable pageable){
         Page<Project> projectPage;
         if (name != null && !name.isEmpty() && status != null && !status.isEmpty()) {
             projectPage = projectRepository.findByNameContainingIgnoreCaseAndStatus(name, status, pageable);
@@ -41,12 +40,12 @@ public class ProjectService {
         } else {
             projectPage = projectRepository.findAll(pageable);
         }
-        return new PageResponseDTO<>(projectPage.map(project -> projectMapper.projectToProjectDTO(project)));
+        return new PageResponseDTO<>(projectPage.map(projectMapper::toDto));
     }
 
     @Transactional(readOnly = true)
-    public ProjectDTO getProjectById(UUID id){
-        return projectMapper.projectToProjectDTO(projectRepository.findById(id)
+    public ProjectDtoResponse getProjectById(UUID id){
+        return projectMapper.toDto(projectRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Project not found")));
     }
 
@@ -58,33 +57,33 @@ public class ProjectService {
     }
 
     @Transactional
-    public ProjectDTO createProject(ProjectDTO projectDTO){
-        if(projectDTO == null){ throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "The project cannot be null"); }
+    public ProjectDtoResponse createProject(ProjectDtoRequest projectDtoRequest){
+        if(projectDtoRequest == null){ throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "The project cannot be null"); }
 
         UUID userId = JwtContextHolder.getUserId();
-        projectDTO.setCreatedBy(userId);
 
-        Project project = projectMapper.projectDTOToProject(projectDTO);
+        Project project = projectMapper.toEntity(projectDtoRequest);
+        project.setCreatedBy(userId);
         projectRepository.save(project);
-        return projectMapper.projectToProjectDTO(project);
+        return projectMapper.toDto(project);
     }
 
     @Transactional
-    public ProjectDTO updateProject(ProjectDTO projectDTO, UUID id){
-        if(projectDTO == null){ throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "The project cannot be null"); }
+    public ProjectDtoResponse updateProject(ProjectDtoRequest projectDtoRequest, UUID id){
+        if(projectDtoRequest == null){ throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "The project cannot be null"); }
 
         Project project = projectRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Project not found"));
 
-        project.setName(projectDTO.getName());
-        project.setDescription(projectDTO.getDescription());
-        project.setStartDate(projectDTO.getStartDate());
-        project.setEndDate(projectDTO.getEndDate());
-        project.setStatus(projectDTO.getStatus());
+        project.setName(projectDtoRequest.getName());
+        project.setDescription(projectDtoRequest.getDescription());
+        project.setStartDate(projectDtoRequest.getStartDate());
+        project.setEndDate(projectDtoRequest.getEndDate());
+        project.setStatus(projectDtoRequest.getStatus());
 
         projectRepository.save(project) ;
 
-        return projectMapper.projectToProjectDTO(project);
+        return projectMapper.toDto(project);
     }
 
     @Transactional(readOnly = true)

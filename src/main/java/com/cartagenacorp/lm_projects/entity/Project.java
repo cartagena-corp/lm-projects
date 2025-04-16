@@ -28,7 +28,7 @@ public class Project {
     @Column(name = "description", length = 300)
     private String description;
 
-    @Column(name = "startDate", nullable = false)
+    @Column(name = "startDate")
     private LocalDate startDate;
 
     @Column(name = "endDate")

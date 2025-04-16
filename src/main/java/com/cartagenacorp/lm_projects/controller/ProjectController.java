@@ -1,10 +1,11 @@
 package com.cartagenacorp.lm_projects.controller;
 
 import com.cartagenacorp.lm_projects.dto.PageResponseDTO;
-import com.cartagenacorp.lm_projects.dto.ProjectDTO;
+import com.cartagenacorp.lm_projects.dto.ProjectDtoRequest;
+import com.cartagenacorp.lm_projects.dto.ProjectDtoResponse;
 import com.cartagenacorp.lm_projects.service.ProjectService;
 import com.cartagenacorp.lm_projects.util.RequiresPermission;
-import jakarta.persistence.EntityNotFoundException;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -12,7 +13,6 @@ import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.util.UUID;
 
@@ -29,91 +29,55 @@ public class ProjectController {
 
     @GetMapping
     @RequiresPermission({"PROJECT_CRUD", "PROJECT_READ"})
-    public ResponseEntity<PageResponseDTO<ProjectDTO>> getAllProjects(
+    public ResponseEntity<PageResponseDTO<ProjectDtoResponse>> getAllProjects(
             @RequestParam(required = false) String name,
             @RequestParam(required = false) String status,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false, defaultValue = "createdAt") String sortBy,
+            @RequestParam(required = false, defaultValue = "desc") String direction) {
 
-        Pageable pageable = PageRequest.of(page, size, Sort.by("name").ascending());
-        PageResponseDTO<ProjectDTO> projectsDTO = projectService.getAllProjects(name, status, pageable);
-        return ResponseEntity.ok(projectsDTO);
+        Sort.Direction sortDirection = direction.equalsIgnoreCase("asc") ? Sort.Direction.ASC : Sort.Direction.DESC;
+        Pageable pageable = PageRequest.of(page, size, Sort.by(sortDirection, sortBy));
+
+        PageResponseDTO<ProjectDtoResponse> projectsDTOResponse = projectService.getAllProjects(name, status, pageable);
+        return ResponseEntity.ok(projectsDTOResponse);
     }
 
     @GetMapping("/{id}")
     @RequiresPermission({"PROJECT_CRUD", "PROJECT_READ"})
     public ResponseEntity<?> getProjectById(@PathVariable String id) {
-        try {
-            UUID uuid = UUID.fromString(id);
-            ProjectDTO projectDTO = projectService.getProjectById(uuid);
-            return ResponseEntity.ok(projectDTO);
-        } catch (ResponseStatusException ex) {
-            return ResponseEntity.status(ex.getStatusCode()).body(ex.getReason());
-        } catch (IllegalArgumentException ex){
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
-        } catch (Exception ex){
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-        }
+        UUID uuid = UUID.fromString(id);
+        ProjectDtoResponse projectDtoResponse = projectService.getProjectById(uuid);
+        return ResponseEntity.ok(projectDtoResponse);
     }
 
     @PostMapping
     @RequiresPermission({"PROJECT_CRUD"})
-    public ResponseEntity<?> createProject(@RequestBody ProjectDTO projectDTO) {
-        try {
-            ProjectDTO createdProject = projectService.createProject(projectDTO);
-            return ResponseEntity.status(HttpStatus.CREATED).body(createdProject);
-        } catch (ResponseStatusException ex) {
-            return ResponseEntity.status(ex.getStatusCode()).body(ex.getReason());
-        } catch (Exception ex){
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("An unexpected error occurred: " + ex.getMessage());
-        }
+    public ResponseEntity<?> createProject(@RequestBody @Valid ProjectDtoRequest projectDtoRequest) {
+        ProjectDtoResponse createdProject = projectService.createProject(projectDtoRequest);
+        return ResponseEntity.status(HttpStatus.CREATED).body(createdProject);
     }
 
     @PutMapping("/{id}")
     @RequiresPermission({"PROJECT_CRUD"})
-    public ResponseEntity<?> updateProject(@PathVariable String id, @RequestBody ProjectDTO projectDTO) {
-
-        try {
-            UUID uuid = UUID.fromString(id);
-            ProjectDTO updatedProject = projectService.updateProject(projectDTO, uuid);
-            return ResponseEntity.ok(updatedProject);
-        } catch (ResponseStatusException ex) {
-            return ResponseEntity.status(ex.getStatusCode()).body(ex.getReason());
-        }  catch (IllegalArgumentException ex){
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
-        }  catch (Exception ex){
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("An unexpected error occurred: " + ex.getMessage());
-        }
+    public ResponseEntity<?> updateProject(@PathVariable String id, @RequestBody @Valid ProjectDtoRequest projectDtoRequest) {
+        UUID uuid = UUID.fromString(id);
+        ProjectDtoResponse updatedProject = projectService.updateProject(projectDtoRequest, uuid);
+        return ResponseEntity.ok(updatedProject);
     }
 
     @DeleteMapping("/{id}")
     @RequiresPermission({"PROJECT_CRUD"})
     public ResponseEntity<?> deleteProject(@PathVariable String id) {
-        try {
-            UUID uuid = UUID.fromString(id);
-            projectService.deleteProject(uuid);
-            return ResponseEntity.noContent().build();
-        } catch (ResponseStatusException ex) {
-            return ResponseEntity.status(ex.getStatusCode()).body(ex.getReason());
-        }  catch (IllegalArgumentException ex){
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
-        } catch (Exception ex) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("An unexpected error occurred: " + ex.getMessage());
-        }
+        UUID uuid = UUID.fromString(id);
+        projectService.deleteProject(uuid);
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/validate/{id}")
     public ResponseEntity<Boolean> projectExists(@PathVariable String id){
-        try {
-            UUID uuid = UUID.fromString(id);
-            return ResponseEntity.status(HttpStatus.OK).body(projectService.projectExists(uuid));
-        }  catch (EntityNotFoundException ex) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
-        } catch (IllegalArgumentException ex){
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
-        } catch (Exception ex){
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-        }
+        UUID uuid = UUID.fromString(id);
+        return ResponseEntity.status(HttpStatus.OK).body(projectService.projectExists(uuid));
     }
-
 }
