@@ -34,8 +34,8 @@ public class Project {
     @Column(name = "endDate")
     private LocalDate endDate;
 
-    @Column(name = "status", nullable = false, length = 20)
-    private String status;
+    @Column(name = "status")
+    private Long status;
 
     @Column(name = "createdAt", nullable = false)
     @CreationTimestamp

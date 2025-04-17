@@ -8,6 +8,7 @@ import org.mapstruct.*;
 @Mapper(unmappedTargetPolicy = ReportingPolicy.IGNORE, componentModel = MappingConstants.ComponentModel.SPRING)
 public interface ProjectMapper {
     Project toEntity(ProjectDtoRequest projectDtoRequest);
+    @Mapping(target = "createdBy", ignore = true)
     ProjectDtoResponse toDto(Project project);
 
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)

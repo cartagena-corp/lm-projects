@@ -2,6 +2,7 @@ package com.cartagenacorp.lm_projects.dto;
 
 import com.cartagenacorp.lm_projects.entity.Project;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -24,6 +25,6 @@ public class ProjectDtoRequest implements Serializable {
     private LocalDate startDate;
     private LocalDate endDate;
 
-    @NotBlank(message = "Status is required")
-    private String status;
+    @NotNull(message = "Status is required")
+    private Long status;
 }

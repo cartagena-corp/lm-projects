@@ -31,16 +31,21 @@ public class ProjectController {
     @RequiresPermission({"PROJECT_CRUD", "PROJECT_READ"})
     public ResponseEntity<PageResponseDTO<ProjectDtoResponse>> getAllProjects(
             @RequestParam(required = false) String name,
-            @RequestParam(required = false) String status,
+            @RequestParam(required = false) Long status,
+            @RequestParam(required = false) String createdBy,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false, defaultValue = "createdAt") String sortBy,
             @RequestParam(required = false, defaultValue = "desc") String direction) {
 
+        UUID uuid = null;
+        if (createdBy != null && !createdBy.isEmpty()) {
+            uuid = UUID.fromString(createdBy);
+        }
         Sort.Direction sortDirection = direction.equalsIgnoreCase("asc") ? Sort.Direction.ASC : Sort.Direction.DESC;
         Pageable pageable = PageRequest.of(page, size, Sort.by(sortDirection, sortBy));
 
-        PageResponseDTO<ProjectDtoResponse> projectsDTOResponse = projectService.getAllProjects(name, status, pageable);
+        PageResponseDTO<ProjectDtoResponse> projectsDTOResponse = projectService.getAllProjects(name, status, uuid, pageable);
         return ResponseEntity.ok(projectsDTOResponse);
     }
 

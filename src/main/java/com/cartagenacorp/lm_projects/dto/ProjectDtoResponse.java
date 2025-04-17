@@ -1,6 +1,9 @@
 package com.cartagenacorp.lm_projects.dto;
 
 import com.cartagenacorp.lm_projects.entity.Project;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 import lombok.Value;
 
 import java.io.Serializable;
@@ -11,15 +14,17 @@ import java.util.UUID;
 /**
  * DTO for {@link Project}
  */
-@Value
+@Data
+@AllArgsConstructor
+@NoArgsConstructor
 public class ProjectDtoResponse implements Serializable {
     UUID id;
     String name;
     String description;
     LocalDate startDate;
     LocalDate endDate;
-    String status;
+    Long status;
     LocalDateTime createdAt;
     LocalDateTime updatedAt;
-    UUID createdBy;
+    CreatedByDto createdBy;
 }
