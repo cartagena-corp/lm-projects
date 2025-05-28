@@ -19,7 +19,7 @@ app:
     secret: ${JWT_SECRET}
 auth:
   service:
-    url: https://lm-oauth.cartagenacorporation.com/api/oauth
+    url: http://localhost:8081/api/oauth
 issues:
   service:
-    url: https://lm-issues.cartagenacorporation.com/api/issues
+    url: http://localhost:8090/api/issues
