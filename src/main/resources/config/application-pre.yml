@@ -10,7 +10,7 @@ spring:
       ddl-auto: update
     open-in-view: 'false'
 server:
-  port: '8082'
+  port: 8082
 app:
   cors:
     allowed-origins: https://cartagenacorporation.com,https://www.cartagenacorporation.com
