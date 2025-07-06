@@ -1,11 +1,10 @@
 package com.cartagenacorp.lm_projects.service;
 
-import com.cartagenacorp.lm_projects.dto.CreatedByDto;
-import com.cartagenacorp.lm_projects.dto.PageResponseDTO;
-import com.cartagenacorp.lm_projects.dto.ProjectDtoRequest;
-import com.cartagenacorp.lm_projects.dto.ProjectDtoResponse;
+import com.cartagenacorp.lm_projects.dto.*;
 import com.cartagenacorp.lm_projects.entity.Project;
+import com.cartagenacorp.lm_projects.entity.ProjectParticipant;
 import com.cartagenacorp.lm_projects.mapper.ProjectMapper;
+import com.cartagenacorp.lm_projects.repository.ProjectParticipantRepository;
 import com.cartagenacorp.lm_projects.repository.ProjectRepository;
 import com.cartagenacorp.lm_projects.repository.specifications.ProjectSpecifications;
 import com.cartagenacorp.lm_projects.util.JwtContextHolder;
@@ -28,19 +27,28 @@ public class ProjectService {
     private final ProjectRepository projectRepository;
     private final ProjectMapper projectMapper;
     private final UserValidationService userValidationService;
+    private final ProjectParticipantRepository projectParticipantRepository;
 
     @Autowired
-    public ProjectService(ProjectRepository projectRepository, ProjectMapper projectMapper, UserValidationService userValidationService) {
+    public ProjectService(ProjectRepository projectRepository, ProjectMapper projectMapper, UserValidationService userValidationService,
+                          ProjectParticipantRepository projectParticipantRepository) {
         this.projectRepository = projectRepository;
         this.projectMapper = projectMapper;
         this.userValidationService = userValidationService;
+        this.projectParticipantRepository = projectParticipantRepository;
     }
 
     @Transactional(readOnly = true)
     public PageResponseDTO<ProjectDtoResponse> getAllProjects(String name, Long status, UUID createdBy, Pageable pageable) {
+        UUID userId = JwtContextHolder.getUserId();
+        List<UUID> participantProjectIds = projectParticipantRepository.findByUserId(userId)
+                .stream()
+                .map(ProjectParticipant::getProjectId)
+                .toList();
+
         Specification<Project> spec = Specification.where(ProjectSpecifications.hasName(name))
                 .and(ProjectSpecifications.hasStatus(status))
-                .and(ProjectSpecifications.hasCreatedBy(createdBy));
+                .and(ProjectSpecifications.isCreatorOrParticipant(userId, participantProjectIds));
 
         Page<Project> projectPage = projectRepository.findAll(spec, pageable);
 
@@ -68,7 +76,7 @@ public class ProjectService {
             UUID createdById = projectPage.getContent().get(i).getCreatedBy();
             CreatedByDto createdByDto = createdByMap.getOrDefault(
                     createdById,
-                    new CreatedByDto(createdById, null, null, null)
+                    new CreatedByDto(createdById, null, null, null, null, null)
             );
             dtoList.get(i).setCreatedBy(createdByDto);
         }
@@ -96,7 +104,9 @@ public class ProjectService {
                         createdBy.map(CreatedByDto::getId).orElse(project.getCreatedBy()),
                         createdBy.map(CreatedByDto::getFirstName).orElse(null),
                         createdBy.map(CreatedByDto::getLastName).orElse(null),
-                        createdBy.map(CreatedByDto::getPicture).orElse(null)
+                        createdBy.map(CreatedByDto::getPicture).orElse(null),
+                        createdBy.map(CreatedByDto::getEmail).orElse(null),
+                        createdBy.map(CreatedByDto::getRole).orElse(null)
                 )
         );
     }
@@ -136,6 +146,50 @@ public class ProjectService {
         projectRepository.save(project) ;
 
         return projectMapper.toDto(project);
+    }
+
+    @Transactional(readOnly = true)
+    public List<CreatedByDto> getProjectParticipants(UUID projectId) {
+        List<UUID> userIds = projectParticipantRepository.findByProjectId(projectId)
+                .stream()
+                .map(ProjectParticipant::getUserId)
+                .distinct()
+                .toList();
+
+        if (userIds.isEmpty()) {
+            return List.of();
+        }
+        Optional<List<CreatedByDto>> users = userValidationService.getUsersData(
+                JwtContextHolder.getToken(), // Token del usuario autenticado
+                userIds.stream().map(UUID::toString).toList()
+        );
+
+        return users.orElse(List.of());
+    }
+
+    @Transactional
+    public void addParticipants(UUID projectId, List<UUID> userIds) {
+        if (!projectRepository.existsById(projectId)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Project not found");
+        }
+
+        List<UUID> existingUserIds = projectParticipantRepository.findByProjectId(projectId)
+                .stream()
+                .map(ProjectParticipant::getUserId)
+                .toList();
+
+        List<ProjectParticipant> newParticipants = userIds.stream()
+                .filter(userId -> !existingUserIds.contains(userId))
+                .map(userId -> new ProjectParticipant(null, projectId, userId))
+                .toList();
+
+        projectParticipantRepository.saveAll(newParticipants);
+    }
+
+    @Transactional
+    public void removeParticipants(UUID projectId, List<UUID> userIds) {
+        List<ProjectParticipant> existing = projectParticipantRepository.findByProjectIdAndUserIdIn(projectId, userIds);
+        projectParticipantRepository.deleteAll(existing);
     }
 
     @Transactional(readOnly = true)

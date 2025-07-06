@@ -1,8 +1,10 @@
 package com.cartagenacorp.lm_projects.repository.specifications;
 
 import com.cartagenacorp.lm_projects.entity.Project;
+import jakarta.persistence.criteria.Predicate;
 import org.springframework.data.jpa.domain.Specification;
 
+import java.util.List;
 import java.util.UUID;
 
 public class ProjectSpecifications {
@@ -31,6 +33,23 @@ public class ProjectSpecifications {
                 return criteriaBuilder.conjunction();
             }
             return criteriaBuilder.equal(root.get("createdBy"), createdBy);
+        };
+    }
+
+    public static Specification<Project> isCreatorOrParticipant(UUID userId, List<UUID> participantProjectIds) {
+        return (root, query, cb) -> {
+            if (userId == null) {
+                return cb.disjunction();
+            }
+
+            Predicate createdBy = cb.equal(root.get("createdBy"), userId);
+
+            if (participantProjectIds != null && !participantProjectIds.isEmpty()) {
+                Predicate participant = root.get("id").in(participantProjectIds);
+                return cb.or(createdBy, participant);
+            }
+
+            return createdBy;
         };
     }
 }

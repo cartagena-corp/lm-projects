@@ -14,4 +14,6 @@ public class CreatedByDto {
     String firstName;
     String lastName;
     String picture;
+    String email;
+    String role;
 }

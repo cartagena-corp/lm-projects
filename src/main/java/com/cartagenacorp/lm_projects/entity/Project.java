@@ -9,6 +9,7 @@ import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 @Entity
@@ -47,4 +48,8 @@ public class Project {
 
     @Column(name = "createdBy", nullable = false)
     private UUID createdBy;
+
+    @OneToMany()
+    @JoinColumn(name = "project_id", referencedColumnName = "id", insertable = false, updatable = false)
+    private List<ProjectParticipant> participants;
 }

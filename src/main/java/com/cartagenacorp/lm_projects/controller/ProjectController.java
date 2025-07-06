@@ -1,8 +1,6 @@
 package com.cartagenacorp.lm_projects.controller;
 
-import com.cartagenacorp.lm_projects.dto.PageResponseDTO;
-import com.cartagenacorp.lm_projects.dto.ProjectDtoRequest;
-import com.cartagenacorp.lm_projects.dto.ProjectDtoResponse;
+import com.cartagenacorp.lm_projects.dto.*;
 import com.cartagenacorp.lm_projects.service.ProjectService;
 import com.cartagenacorp.lm_projects.util.RequiresPermission;
 import jakarta.validation.Valid;
@@ -14,6 +12,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -78,6 +77,26 @@ public class ProjectController {
         UUID uuid = UUID.fromString(id);
         projectService.deleteProject(uuid);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/{projectId}/participants")
+    @RequiresPermission({"PROJECT_CRUD", "PROJECT_READ"})
+    public ResponseEntity<List<CreatedByDto>> getParticipants(@PathVariable UUID projectId) {
+        return ResponseEntity.ok(projectService.getProjectParticipants(projectId));
+    }
+
+    @PostMapping("/{projectId}/participants")
+    @RequiresPermission({"PROJECT_CRUD"})
+    public ResponseEntity<?> addParticipants(@PathVariable UUID projectId, @RequestBody ProjectParticipantRequestDto request) {
+        projectService.addParticipants(projectId, request.getUserIds());
+        return ResponseEntity.status(HttpStatus.CREATED).body("Participants added successfully");
+    }
+
+    @DeleteMapping("/{projectId}/participants")
+    @RequiresPermission({"PROJECT_CRUD"})
+    public ResponseEntity<?> removeParticipants(@PathVariable UUID projectId, @RequestBody ProjectParticipantRequestDto request) {
+        projectService.removeParticipants(projectId, request.getUserIds());
+        return ResponseEntity.ok("Participants removed successfully");
     }
 
     @GetMapping("/validate/{id}")
