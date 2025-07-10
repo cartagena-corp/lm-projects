@@ -41,14 +41,20 @@ public class ProjectService {
     @Transactional(readOnly = true)
     public PageResponseDTO<ProjectDtoResponse> getAllProjects(String name, Long status, UUID createdBy, Pageable pageable) {
         UUID userId = JwtContextHolder.getUserId();
-        List<UUID> participantProjectIds = projectParticipantRepository.findByUserId(userId)
-                .stream()
-                .map(ProjectParticipant::getProjectId)
-                .toList();
 
         Specification<Project> spec = Specification.where(ProjectSpecifications.hasName(name))
-                .and(ProjectSpecifications.hasStatus(status))
-                .and(ProjectSpecifications.isCreatorOrParticipant(userId, participantProjectIds));
+                .and(ProjectSpecifications.hasStatus(status));
+
+        if (createdBy != null) {
+            spec = spec.and(ProjectSpecifications.hasCreatedBy(createdBy));
+        } else {
+            List<UUID> participantProjectIds = projectParticipantRepository.findByUserId(userId)
+                    .stream()
+                    .map(ProjectParticipant::getProjectId)
+                    .toList();
+
+            spec = spec.and(ProjectSpecifications.isCreatorOrParticipant(userId, participantProjectIds));
+        }
 
         Page<Project> projectPage = projectRepository.findAll(spec, pageable);
 
