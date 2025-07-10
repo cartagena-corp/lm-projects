@@ -115,6 +115,14 @@ public class ProjectService {
     public void deleteProject(UUID id){
         Project project = projectRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Project not found"));
+
+        UUID userId = JwtContextHolder.getUserId();
+
+        if (!project.getCreatedBy().equals(userId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You are not allowed to delete this project");
+        }
+
+        projectParticipantRepository.deleteByProjectId(id);
         projectRepository.delete(project);
     }
 
