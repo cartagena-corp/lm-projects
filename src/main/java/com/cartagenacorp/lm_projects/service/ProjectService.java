@@ -180,7 +180,9 @@ public class ProjectService {
         );
 
         return users.orElse(List.of()).stream()
-                .sorted(Comparator.comparing(CreatedByDto::getCreatedAt).reversed())
+                .sorted(Comparator.comparing(CreatedByDto::getCreatedAt,
+                        Comparator.nullsLast(Comparator.naturalOrder())
+                ).reversed())
                 .toList();
     }
 
