@@ -82,7 +82,7 @@ public class ProjectService {
             UUID createdById = projectPage.getContent().get(i).getCreatedBy();
             CreatedByDto createdByDto = createdByMap.getOrDefault(
                     createdById,
-                    new CreatedByDto(createdById, null, null, null, null, null)
+                    new CreatedByDto(createdById, null, null, null, null, null, null)
             );
             dtoList.get(i).setCreatedBy(createdByDto);
         }
@@ -112,7 +112,8 @@ public class ProjectService {
                         createdBy.map(CreatedByDto::getLastName).orElse(null),
                         createdBy.map(CreatedByDto::getPicture).orElse(null),
                         createdBy.map(CreatedByDto::getEmail).orElse(null),
-                        createdBy.map(CreatedByDto::getRole).orElse(null)
+                        createdBy.map(CreatedByDto::getRole).orElse(null),
+                        createdBy.map(CreatedByDto::getCreatedAt).orElse(null)
                 )
         );
     }
@@ -178,7 +179,9 @@ public class ProjectService {
                 userIds.stream().map(UUID::toString).toList()
         );
 
-        return users.orElse(List.of());
+        return users.orElse(List.of()).stream()
+                .sorted(Comparator.comparing(CreatedByDto::getCreatedAt).reversed())
+                .toList();
     }
 
     @Transactional
