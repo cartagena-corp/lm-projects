@@ -169,13 +169,24 @@ public class ProjectService {
                 .stream()
                 .map(ProjectParticipant::getUserId)
                 .distinct()
-                .toList();
+                .collect(Collectors.toCollection(ArrayList::new));
+
+        Optional<Project> optionalProject = projectRepository.findById(projectId);
+        if (optionalProject.isEmpty()) {
+            return List.of();
+        }
+
+        UUID creatorId = optionalProject.get().getCreatedBy();
+        if (!userIds.contains(creatorId)) {
+            userIds.add(creatorId);
+        }
 
         if (userIds.isEmpty()) {
             return List.of();
         }
+
         Optional<List<CreatedByDto>> users = userValidationService.getUsersData(
-                JwtContextHolder.getToken(), // Token del usuario autenticado
+                JwtContextHolder.getToken(),
                 userIds.stream().map(UUID::toString).toList()
         );
 
