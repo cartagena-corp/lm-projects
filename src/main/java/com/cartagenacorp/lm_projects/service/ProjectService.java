@@ -282,4 +282,16 @@ public class ProjectService {
     public boolean projectExists(UUID id){
         return projectRepository.existsById(id);
     }
+
+    @Transactional(readOnly = true)
+    public boolean projectParticipant(UUID projectId){
+        Project project = projectRepository.findById(projectId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Project not found"));
+
+        UUID currentUserId = JwtContextHolder.getUserId();
+        boolean isCreator = project.getCreatedBy().equals(currentUserId);
+        boolean isParticipant = projectParticipantRepository.existsByProjectIdAndUserId(projectId, currentUserId);
+
+        return isCreator || isParticipant;
+    }
 }

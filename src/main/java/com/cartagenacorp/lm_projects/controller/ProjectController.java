@@ -97,10 +97,17 @@ public class ProjectController {
         return ResponseEntity.ok("Participants removed successfully");
     }
 
-    @GetMapping("/validate/{id}") //se usa desde lm-issues y lm-sprint
+    @GetMapping("/validate/{id}") //se usa desde lm-issues y lm-sprint (uso interno)
     @RequiresPermission({"ISSUE_CREATE", "SPRINT_CREATE"})
     public ResponseEntity<Boolean> projectExists(@PathVariable String id){
         UUID uuid = UUID.fromString(id);
         return ResponseEntity.status(HttpStatus.OK).body(projectService.projectExists(uuid));
+    }
+
+    @GetMapping("/validateParticipant/{id}") //se usa desde lm-issues y lm-sprint (uso interno)
+    @RequiresPermission({"PROJECT_READ"})
+    public ResponseEntity<Boolean> projectParticipant(@PathVariable String id){
+        UUID uuid = UUID.fromString(id);
+        return ResponseEntity.status(HttpStatus.OK).body(projectService.projectParticipant(uuid));
     }
 }
