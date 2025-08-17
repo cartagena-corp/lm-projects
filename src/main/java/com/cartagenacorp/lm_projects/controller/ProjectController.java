@@ -4,7 +4,6 @@ import com.cartagenacorp.lm_projects.dto.*;
 import com.cartagenacorp.lm_projects.service.ProjectService;
 import com.cartagenacorp.lm_projects.util.RequiresPermission;
 import jakarta.validation.Valid;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -21,13 +20,12 @@ public class ProjectController {
 
     private final ProjectService projectService;
 
-    @Autowired
     public ProjectController(ProjectService projectService) {
         this.projectService = projectService;
     }
 
     @GetMapping
-    @RequiresPermission({"PROJECT_CRUD", "PROJECT_READ"})
+    @RequiresPermission({"PROJECT_READ"})
     public ResponseEntity<PageResponseDTO<ProjectDtoResponse>> getAllProjects(
             @RequestParam(required = false) String name,
             @RequestParam(required = false) Long status,
@@ -49,7 +47,7 @@ public class ProjectController {
     }
 
     @GetMapping("/{id}")
-    @RequiresPermission({"PROJECT_CRUD", "PROJECT_READ"})
+    @RequiresPermission({"PROJECT_READ"})
     public ResponseEntity<?> getProjectById(@PathVariable String id) {
         UUID uuid = UUID.fromString(id);
         ProjectDtoResponse projectDtoResponse = projectService.getProjectById(uuid);
@@ -57,14 +55,14 @@ public class ProjectController {
     }
 
     @PostMapping
-    @RequiresPermission({"PROJECT_CRUD"})
+    @RequiresPermission({"PROJECT_CREATE"})
     public ResponseEntity<?> createProject(@RequestBody @Valid ProjectDtoRequest projectDtoRequest) {
         ProjectDtoResponse createdProject = projectService.createProject(projectDtoRequest);
         return ResponseEntity.status(HttpStatus.CREATED).body(createdProject);
     }
 
     @PutMapping("/{id}")
-    @RequiresPermission({"PROJECT_CRUD"})
+    @RequiresPermission({"PROJECT_UPDATE"})
     public ResponseEntity<?> updateProject(@PathVariable String id, @RequestBody @Valid ProjectDtoRequest projectDtoRequest) {
         UUID uuid = UUID.fromString(id);
         ProjectDtoResponse updatedProject = projectService.updateProject(projectDtoRequest, uuid);
@@ -72,7 +70,7 @@ public class ProjectController {
     }
 
     @DeleteMapping("/{id}")
-    @RequiresPermission({"PROJECT_CRUD"})
+    @RequiresPermission({"PROJECT_DELETE"})
     public ResponseEntity<?> deleteProject(@PathVariable String id) {
         UUID uuid = UUID.fromString(id);
         projectService.deleteProject(uuid);
@@ -80,26 +78,27 @@ public class ProjectController {
     }
 
     @GetMapping("/{projectId}/participants")
-    @RequiresPermission({"PROJECT_CRUD", "PROJECT_READ"})
-    public ResponseEntity<List<CreatedByDto>> getParticipants(@PathVariable UUID projectId) {
+    @RequiresPermission({"PROJECT_READ"})
+    public ResponseEntity<List<UserBasicDataDto>> getParticipants(@PathVariable UUID projectId) {
         return ResponseEntity.ok(projectService.getProjectParticipants(projectId));
     }
 
     @PostMapping("/{projectId}/participants")
-    @RequiresPermission({"PROJECT_CRUD"})
+    @RequiresPermission({"PROJECT_CREATE"})
     public ResponseEntity<?> addParticipants(@PathVariable UUID projectId, @RequestBody ProjectParticipantRequestDto request) {
         projectService.addParticipants(projectId, request.getUserIds());
         return ResponseEntity.status(HttpStatus.CREATED).body("Participants added successfully");
     }
 
     @DeleteMapping("/{projectId}/participants")
-    @RequiresPermission({"PROJECT_CRUD"})
+    @RequiresPermission({"PROJECT_CREATE"})
     public ResponseEntity<?> removeParticipants(@PathVariable UUID projectId, @RequestBody ProjectParticipantRequestDto request) {
         projectService.removeParticipants(projectId, request.getUserIds());
         return ResponseEntity.ok("Participants removed successfully");
     }
 
-    @GetMapping("/validate/{id}")
+    @GetMapping("/validate/{id}") //se usa desde lm-issues y lm-sprint
+    @RequiresPermission({"ISSUE_CREATE", "SPRINT_CREATE"})
     public ResponseEntity<Boolean> projectExists(@PathVariable String id){
         UUID uuid = UUID.fromString(id);
         return ResponseEntity.status(HttpStatus.OK).body(projectService.projectExists(uuid));
