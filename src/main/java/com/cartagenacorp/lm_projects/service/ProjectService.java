@@ -8,7 +8,6 @@ import com.cartagenacorp.lm_projects.repository.ProjectParticipantRepository;
 import com.cartagenacorp.lm_projects.repository.ProjectRepository;
 import com.cartagenacorp.lm_projects.repository.specifications.ProjectSpecifications;
 import com.cartagenacorp.lm_projects.util.JwtContextHolder;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
@@ -16,6 +15,8 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.*;
@@ -26,15 +27,16 @@ import java.util.stream.Collectors;
 public class ProjectService {
     private final ProjectRepository projectRepository;
     private final ProjectMapper projectMapper;
-    private final UserValidationService userValidationService;
+    private final UserExternalService userExternalService;
+    private final ConfigExternalService configExternalService;
     private final ProjectParticipantRepository projectParticipantRepository;
 
-    @Autowired
-    public ProjectService(ProjectRepository projectRepository, ProjectMapper projectMapper, UserValidationService userValidationService,
-                          ProjectParticipantRepository projectParticipantRepository) {
+    public ProjectService(ProjectRepository projectRepository, ProjectMapper projectMapper, UserExternalService userExternalService,
+                          ConfigExternalService configExternalService, ProjectParticipantRepository projectParticipantRepository) {
         this.projectRepository = projectRepository;
         this.projectMapper = projectMapper;
-        this.userValidationService = userValidationService;
+        this.userExternalService = userExternalService;
+        this.configExternalService = configExternalService;
         this.projectParticipantRepository = projectParticipantRepository;
     }
 
@@ -69,20 +71,21 @@ public class ProjectService {
                 .distinct()
                 .toList();
 
-        Optional<List<CreatedByDto>> createdByListOpt = userValidationService.getUsersData(
-                JwtContextHolder.getToken(), createdByIds.stream().map(UUID::toString).collect(Collectors.toList())
+        List<UserBasicDataDto> createdByList = userExternalService.getUsersData(
+                JwtContextHolder.getToken(),
+                createdByIds.stream()
+                        .map(UUID::toString)
+                        .collect(Collectors.toList())
         );
 
-        Map<UUID, CreatedByDto> createdByMap = createdByListOpt
-                .orElse(List.of())
-                .stream()
-                .collect(Collectors.toMap(CreatedByDto::getId, Function.identity()));
+        Map<UUID, UserBasicDataDto> createdByMap = createdByList.stream()
+                .collect(Collectors.toMap(UserBasicDataDto::getId, Function.identity()));
 
         for (int i = 0; i < dtoList.size(); i++) {
             UUID createdById = projectPage.getContent().get(i).getCreatedBy();
-            CreatedByDto createdByDto = createdByMap.getOrDefault(
+            UserBasicDataDto createdByDto = createdByMap.getOrDefault(
                     createdById,
-                    new CreatedByDto(createdById, null, null, null, null, null, null)
+                    new UserBasicDataDto(createdById, null, null, null, null, null, null)
             );
             dtoList.get(i).setCreatedBy(createdByDto);
         }
@@ -94,27 +97,36 @@ public class ProjectService {
         Project project = projectRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Project not found"));
 
-        ProjectDtoResponse dto = projectMapper.toDto(project);
-        Optional<CreatedByDto> createdBy = userValidationService.getUserData(JwtContextHolder.getToken(), project.getCreatedBy().toString());
+        UUID userId = JwtContextHolder.getUserId();
+        boolean isCreator = project.getCreatedBy().equals(userId);
+        boolean isParticipant = projectParticipantRepository.existsByProjectIdAndUserId(id, userId);
+
+        if (!isCreator && !isParticipant) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Project not found");
+        }
+
+        ProjectDtoResponse projectDtoResponse = projectMapper.toDto(project);
+
+        List<UserBasicDataDto> createdByList = userExternalService.getUsersData(
+                JwtContextHolder.getToken(),
+                List.of(project.getCreatedBy().toString())
+        );
+
+        UserBasicDataDto createdByDto = createdByList.isEmpty()
+                ? new UserBasicDataDto(project.getCreatedBy(), null, null, null, null, null, null)
+                : createdByList.get(0);
 
         return new ProjectDtoResponse(
-                dto.getId(),
-                dto.getName(),
-                dto.getDescription(),
-                dto.getStartDate(),
-                dto.getEndDate(),
-                dto.getStatus(),
-                dto.getCreatedAt(),
-                dto.getUpdatedAt(),
-                new CreatedByDto(
-                        createdBy.map(CreatedByDto::getId).orElse(project.getCreatedBy()),
-                        createdBy.map(CreatedByDto::getFirstName).orElse(null),
-                        createdBy.map(CreatedByDto::getLastName).orElse(null),
-                        createdBy.map(CreatedByDto::getPicture).orElse(null),
-                        createdBy.map(CreatedByDto::getEmail).orElse(null),
-                        createdBy.map(CreatedByDto::getRole).orElse(null),
-                        createdBy.map(CreatedByDto::getCreatedAt).orElse(null)
-                )
+                projectDtoResponse.getId(),
+                projectDtoResponse.getName(),
+                projectDtoResponse.getDescription(),
+                projectDtoResponse.getStartDate(),
+                projectDtoResponse.getEndDate(),
+                projectDtoResponse.getStatus(),
+                projectDtoResponse.getCreatedAt(),
+                projectDtoResponse.getUpdatedAt(),
+                createdByDto,
+                projectDtoResponse.getOrganizationId()
         );
     }
 
@@ -128,7 +140,7 @@ public class ProjectService {
         if (!project.getCreatedBy().equals(userId)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You are not allowed to delete this project");
         }
-
+        configExternalService.deleteByProjectId(id, JwtContextHolder.getToken());
         projectParticipantRepository.deleteByProjectId(id);
         projectRepository.delete(project);
     }
@@ -138,10 +150,22 @@ public class ProjectService {
         if(projectDtoRequest == null){ throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "The project cannot be null"); }
 
         UUID userId = JwtContextHolder.getUserId();
+        UUID organizationId = JwtContextHolder.getOrganizationId();
 
         Project project = projectMapper.toEntity(projectDtoRequest);
         project.setCreatedBy(userId);
-        projectRepository.save(project);
+        project.setOrganizationId(organizationId);
+        Project savedProject = projectRepository.save(project);
+
+        if (savedProject.getId() != null) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    configExternalService.initializeDefaultProjectConfig(savedProject.getId(), JwtContextHolder.getToken());
+                }
+            });
+        }
+
         return projectMapper.toDto(project);
     }
 
@@ -151,6 +175,14 @@ public class ProjectService {
 
         Project project = projectRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Project not found"));
+
+        UUID userId = JwtContextHolder.getUserId();
+        boolean isCreator = project.getCreatedBy().equals(userId);
+        boolean isParticipant = projectParticipantRepository.existsByProjectIdAndUserId(id, userId);
+
+        if (!isCreator && !isParticipant) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Project not found");
+        }
 
         project.setName(projectDtoRequest.getName());
         project.setDescription(projectDtoRequest.getDescription());
@@ -164,7 +196,7 @@ public class ProjectService {
     }
 
     @Transactional(readOnly = true)
-    public List<CreatedByDto> getProjectParticipants(UUID projectId) {
+    public List<UserBasicDataDto> getProjectParticipants(UUID projectId) {
         List<UUID> userIds = projectParticipantRepository.findByProjectId(projectId)
                 .stream()
                 .map(ProjectParticipant::getUserId)
@@ -185,13 +217,15 @@ public class ProjectService {
             return List.of();
         }
 
-        Optional<List<CreatedByDto>> users = userValidationService.getUsersData(
+        List<UserBasicDataDto> users = userExternalService.getUsersData(
                 JwtContextHolder.getToken(),
-                userIds.stream().map(UUID::toString).toList()
+                userIds.stream()
+                        .map(UUID::toString)
+                        .toList()
         );
 
-        return users.orElse(List.of()).stream()
-                .sorted(Comparator.comparing(CreatedByDto::getCreatedAt,
+        return users.stream()
+                .sorted(Comparator.comparing(UserBasicDataDto::getCreatedAt,
                         Comparator.nullsLast(Comparator.naturalOrder())
                 ).reversed())
                 .toList();
@@ -200,6 +234,17 @@ public class ProjectService {
     @Transactional
     public void addParticipants(UUID projectId, List<UUID> userIds) {
         if (!projectRepository.existsById(projectId)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Project not found");
+        }
+
+        Project project = projectRepository.findById(projectId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Project not found"));
+
+        UUID currentUserId = JwtContextHolder.getUserId();
+        boolean isCreator = project.getCreatedBy().equals(currentUserId);
+        boolean isParticipant = projectParticipantRepository.existsByProjectIdAndUserId(projectId, currentUserId);
+
+        if (!isCreator && !isParticipant) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Project not found");
         }
 
@@ -218,6 +263,17 @@ public class ProjectService {
 
     @Transactional
     public void removeParticipants(UUID projectId, List<UUID> userIds) {
+        Project project = projectRepository.findById(projectId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Project not found"));
+
+        UUID userId = JwtContextHolder.getUserId();
+        boolean isCreator = project.getCreatedBy().equals(userId);
+        boolean isParticipant = projectParticipantRepository.existsByProjectIdAndUserId(projectId, userId);
+
+        if (!isCreator && !isParticipant) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Project not found");
+        }
+
         List<ProjectParticipant> existing = projectParticipantRepository.findByProjectIdAndUserIdIn(projectId, userIds);
         projectParticipantRepository.deleteAll(existing);
     }
@@ -225,5 +281,17 @@ public class ProjectService {
     @Transactional(readOnly = true)
     public boolean projectExists(UUID id){
         return projectRepository.existsById(id);
+    }
+
+    @Transactional(readOnly = true)
+    public boolean projectParticipant(UUID projectId){
+        Project project = projectRepository.findById(projectId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Project not found"));
+
+        UUID currentUserId = JwtContextHolder.getUserId();
+        boolean isCreator = project.getCreatedBy().equals(currentUserId);
+        boolean isParticipant = projectParticipantRepository.existsByProjectIdAndUserId(projectId, currentUserId);
+
+        return isCreator || isParticipant;
     }
 }

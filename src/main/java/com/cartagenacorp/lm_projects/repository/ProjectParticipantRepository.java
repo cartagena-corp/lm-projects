@@ -13,4 +13,5 @@ public interface ProjectParticipantRepository extends JpaRepository<ProjectParti
     List<ProjectParticipant> findByProjectId(UUID projectId);
     List<ProjectParticipant> findByProjectIdAndUserIdIn(UUID projectId, List<UUID> userIds);
     void deleteByProjectId(UUID projectId);
+    boolean existsByProjectIdAndUserId(UUID projectId, UUID userId);
 }
