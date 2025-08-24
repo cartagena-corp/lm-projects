@@ -110,4 +110,27 @@ public class ProjectController {
         UUID uuid = UUID.fromString(id);
         return ResponseEntity.status(HttpStatus.OK).body(projectService.projectParticipant(uuid));
     }
+
+    @GetMapping("/organization/{organizationId}")
+    @RequiresPermission({"ORGANIZATION_CONTROL"})
+    public ResponseEntity<PageResponseDTO<ProjectDtoResponse>> getProjectsByOrganization(
+            @PathVariable String organizationId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false, defaultValue = "createdAt") String sortBy,
+            @RequestParam(required = false, defaultValue = "desc") String direction
+    ) {
+        UUID uuid = UUID.fromString(organizationId);
+
+        Sort.Direction sortDirection = direction.equalsIgnoreCase("asc")
+                ? Sort.Direction.ASC
+                : Sort.Direction.DESC;
+
+        Pageable pageable = PageRequest.of(page, size, Sort.by(sortDirection, sortBy));
+
+        PageResponseDTO<ProjectDtoResponse> projectsDTOResponse =
+                projectService.getProjectsByOrganization(uuid, pageable);
+
+        return ResponseEntity.ok(projectsDTOResponse);
+    }
 }

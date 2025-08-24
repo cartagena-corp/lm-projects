@@ -52,4 +52,13 @@ public class ProjectSpecifications {
             return createdBy;
         };
     }
+
+    public static Specification<Project> hasOrganization(UUID organizationId) {
+        return (root, query, cb) -> {
+            if (organizationId == null) {
+                return cb.conjunction();
+            }
+            return cb.equal(root.get("organizationId"), organizationId);
+        };
+    }
 }

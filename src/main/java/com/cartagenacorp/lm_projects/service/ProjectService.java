@@ -130,6 +130,44 @@ public class ProjectService {
         );
     }
 
+    @Transactional(readOnly = true)
+    public PageResponseDTO<ProjectDtoResponse> getProjectsByOrganization(UUID organizationId, Pageable pageable) {
+
+        Specification<Project> spec = Specification.where(ProjectSpecifications.hasOrganization(organizationId));
+
+        Page<Project> projectPage = projectRepository.findAll(spec, pageable);
+
+        List<ProjectDtoResponse> dtoList = projectPage
+                .stream()
+                .map(projectMapper::toDto)
+                .toList();
+
+        List<UUID> createdByIds = projectPage.stream()
+                .map(Project::getCreatedBy)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+
+        List<UserBasicDataDto> createdByList = userExternalService.getUsersData(
+                JwtContextHolder.getToken(),
+                createdByIds.stream().map(UUID::toString).toList()
+        );
+
+        Map<UUID, UserBasicDataDto> createdByMap = createdByList.stream()
+                .collect(Collectors.toMap(UserBasicDataDto::getId, Function.identity()));
+
+        for (int i = 0; i < dtoList.size(); i++) {
+            UUID createdById = projectPage.getContent().get(i).getCreatedBy();
+            UserBasicDataDto createdByDto = createdByMap.getOrDefault(
+                    createdById,
+                    new UserBasicDataDto(createdById, null, null, null, null, null, null)
+            );
+            dtoList.get(i).setCreatedBy(createdByDto);
+        }
+
+        return new PageResponseDTO<>(new PageImpl<>(dtoList, pageable, projectPage.getTotalElements()));
+    }
+
     @Transactional
     public void deleteProject(UUID id){
         Project project = projectRepository.findById(id)
