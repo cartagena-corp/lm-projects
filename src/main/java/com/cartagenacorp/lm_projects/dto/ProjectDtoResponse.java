@@ -4,7 +4,6 @@ import com.cartagenacorp.lm_projects.entity.Project;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import lombok.Value;
 
 import java.io.Serializable;
 import java.time.LocalDate;
@@ -26,5 +25,6 @@ public class ProjectDtoResponse implements Serializable {
     Long status;
     LocalDateTime createdAt;
     LocalDateTime updatedAt;
-    CreatedByDto createdBy;
+    UserBasicDataDto createdBy;
+    UUID organizationId;
 }

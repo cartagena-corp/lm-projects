@@ -23,3 +23,6 @@ auth:
 issues:
   service:
     url: http://localhost:8090/api/issues
+config:
+  service:
+    url: http://localhost:8088/api/config

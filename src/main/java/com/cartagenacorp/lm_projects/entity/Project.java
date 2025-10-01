@@ -52,4 +52,7 @@ public class Project {
     @OneToMany()
     @JoinColumn(name = "project_id", referencedColumnName = "id", insertable = false, updatable = false)
     private List<ProjectParticipant> participants;
+
+    @Column(name = "organization_id")
+    private UUID organizationId;
 }

@@ -10,7 +10,7 @@ import java.util.UUID;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class CreatedByDto {
+public class UserBasicDataDto {
     UUID id;
     String firstName;
     String lastName;
