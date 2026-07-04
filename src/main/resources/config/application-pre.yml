@@ -14,7 +14,7 @@ server:
   port: 8082
 app:
   cors:
-    allowed-origins: https://cartagenacorporation.com,https://www.cartagenacorporation.com,lm-landing.vercel.app,lm-front-three.vercel.app
+    allowed-origins: https://cartagenacorporation.com,https://www.cartagenacorporation.com,http://localhost:3000,http://127.0.0.1:3000,lm-landing.vercel.app,lm-front-three.vercel.app
   jwt:
     secret: ${JWT_SECRET}
 auth:
