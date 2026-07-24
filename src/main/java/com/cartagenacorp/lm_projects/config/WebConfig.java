@@ -16,7 +16,7 @@ public class WebConfig implements WebMvcConfigurer {
         registry.addMapping("/**")
                 //.allowedOrigins(allowedOrigins)
                 //.allowedOriginPatterns("https://*.cartagenacorporation.com")
-                .allowedOriginPatterns("https://*.cartagenacorporation.com", "http://localhost:*", "http://127.0.0.1:*")
+                .allowedOriginPatterns("https://cartagenacorporation.com", "https://*.cartagenacorporation.com", "http://localhost:*", "http://127.0.0.1:*")
                 .allowedMethods("*")
                 .allowCredentials(true);
     }
